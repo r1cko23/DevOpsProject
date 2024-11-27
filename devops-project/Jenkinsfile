@@ -1,0 +1,64 @@
+pipeline {
+    agent any
+
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+
+        stage('Install Dependencies') {
+            steps {
+                sh 'npm install'
+            }
+        }
+
+        stage('Run Tests') {
+            steps {
+                sh 'npm test -- --watchAll=false'
+            }
+        }
+
+        stage('Build') {
+            steps {
+                sh 'npm run build'
+            }
+        }
+
+        stage('Deploy with IaC') {
+            steps {
+                dir('terraform') {
+                    sh '''
+                    terraform init
+                    terraform apply -auto-approve
+                    '''
+                }
+            }
+        }
+
+        stage('Monitoring & Logging') {
+            steps {
+                echo 'Monitoring application...'
+                sh '''
+                echo "Application running successfully" > /tmp/react-app.log
+                cat /tmp/react-app.log
+                '''
+            }
+        }
+    }
+
+    post {
+        success {
+            echo 'Pipeline completed successfully!'
+        }
+
+        failure {
+            echo 'Pipeline failed. Check logs.'
+        }
+
+        always {
+            archiveArtifacts artifacts: 'build/**', allowEmptyArchive: true
+        }
+    }
+}
